@@ -1,56 +1,102 @@
-<h2>gmap</h2>
+<div class="gmap">
+  <h2>gmap</h2>
 
-<input id="address" type="textbox" value="GeekSalon">
-<input type="button" value="Encode" onclick="codeAddress()">
-<!-- 下の1行を追加 -->
-<div id="display">何かが表示される、、、、！</div>
+  <input id="address" type="textbox" value="Sydney, NSW">
+  <input type="button" value="検索" onclick="codeAddress()">
 
-<div id='map'></div>
+  <!-- 地図情報を保存するフォーム -->
+  <%= form_for @map do |f| %>
+  <!-- 検索値を隠しデータとして送信-->
+    <input type="hidden" name="map[address]" id="hidden_address">
+    <%= f.label :title, "タイトル" %>
+    <%= f.text_field :title %>
+    <%= f.label :comment, "コメント" %>
+    <%= f.text_field :comment %>
+    <%= f.submit "保存" %>
+  <% end %>
 
-<style>
-#map {
-  height: 600px;
-  width: 600px;
-}
-</style>
+
+  <div id='map'>
+
+
+  </div>
+    <%= render @maps %>
+  </div>
+
 
 <script>
-let map
-let geocoder
-// 下の1行を追加 
-const display = document.getElementById('display')
+  let map
+  let geocoder
+  // 変数を追加
+  let marker
 
-function initMap(){
-  geocoder = new google.maps.Geocoder()
+  function initMap() {
+    geocoder = new google.maps.Geocoder()
 
-  map = new google.maps.Map(document.getElementById('map'), {
-    center: {lat: 40.7828, lng:-73.9653},
-    zoom: 12,
-  });
-  
-    marker = new google.maps.Marker({
-    position:  {lat: 40.7828, lng:-73.9653},
-    map: map
-  });
-}
+    // 変数の名前をmapInstanceに変更、デフォルト位置を東京に変更
+    mapInstance = new google.maps.Map(document.getElementById('map'), {
+      center: {
+        lat: 35.681,
+        lng: 139.767
+      },
+      zoom: 8
+    });
 
-function codeAddress(){
-  let inputAddress = document.getElementById('address').value;
-
-  geocoder.geocode( { 'address': inputAddress}, function(results, status) {
-    if (status == 'OK') {
-      map.setCenter(results[0].geometry.location);
-      var marker = new google.maps.Marker({
-          map: map,
-          position: results[0].geometry.location
-      });
-      // 下の1行を追加 
-      display.textContent = "検索結果：" + results[ 0 ].geometry.location
-    } else {
-      alert('該当する結果がありませんでした：' + status);
+    // 保存された地図情報からピンをさす
+    <% @maps.each do |map| %>
+    // google.maps.LatLngインスタンスを生成
+    pos = new google.maps.LatLng(
+    <%=map.latitude%>, //latitude
+    <%=map.longitude%> //longitude
+    );
+    default_marker = new google.maps.Marker({
+    map: mapInstance,
+    position: pos,
+    icon: {
+    url: ' https://maps.google.com/mapfiles/ms/icons/green-dot.png', //アイコンのURL
+    scaledSize: new google.maps.Size(40, 40) //サイズ
     }
-  });   
-}
-</script>
-  
+    });
+    <% end %>
+  }
 
+
+  function codeAddress() {
+    let inputAddress = document.getElementById('address').value;
+
+    geocoder.geocode({
+      'address': inputAddress
+    }, function (results, status) {
+      if (status == 'OK') {
+        // map→mapInstanceに変更
+        mapInstance.setCenter(results[0].geometry.location);
+
+        // 既存の検索マーカーを削除
+        if(marker != null){
+        marker.setMap(null);
+        }
+        marker = null;
+
+        // var marker → markerへ変更
+        marker = new google.maps.Marker({
+          //map→mapInstanceに変更
+          map: mapInstance,
+          position: results[0].geometry.location
+        });
+
+        let title = document.getElementById('map_title');
+        title.setAttribute("value", inputAddress);
+
+        let hidden_address = document.getElementById('hidden_address');
+        hidden_address.setAttribute("value", inputAddress);
+      } else {
+        alert('Geocode was not successful for the following reason: ' + status);
+      }
+    });
+  }
+
+
+</script>
+<!--// 引用者の判断でAPI keyは環境変数を利用-->
+<script src="https://maps.googleapis.com/maps/api/js?key=<%= ENV['GOOGLE_MAP_API_KEY'] %>&callback=initMap" async defer></script>
+</script>

@@ -1,102 +1,117 @@
-<div class="gmap">
-  <h2>gmap</h2>
+<h2>Google map</h2>
 
-  <input id="address" type="textbox" value="Sydney, NSW">
-  <input type="button" value="検索" onclick="codeAddress()">
+<input id="address" type="textbox" value="">
+<input type="button" value="地図を検索" onclick="codeAddress()">
+<div id="display">緯度経度が表示されるよ！</div>
 
-  <!-- 地図情報を保存するフォーム -->
-  <%= form_for @map do |f| %>
-  <!-- 検索値を隠しデータとして送信-->
-    <input type="hidden" name="map[address]" id="hidden_address">
-    <%= f.label :title, "タイトル" %>
-    <%= f.text_field :title %>
-    <%= f.label :comment, "コメント" %>
-    <%= f.text_field :comment %>
-    <%= f.submit "保存" %>
-  <% end %>
+<div id='map'></div>
 
-
-  <div id='map'>
-
-
-  </div>
-    <%= render @maps %>
-  </div>
-
+<style>
+    #map {
+        height: 400px;
+        width: 400px;
+    }
+</style>
 
 <script>
-  let map
-  let geocoder
-  // 変数を追加
-  let marker
+    let map
 
-  function initMap() {
-    geocoder = new google.maps.Geocoder()
+    const display = document.getElementById('display')
 
-    // 変数の名前をmapInstanceに変更、デフォルト位置を東京に変更
-    mapInstance = new google.maps.Map(document.getElementById('map'), {
-      center: {
-        lat: 35.681,
-        lng: 139.767
-      },
-      zoom: 8
-    });
+    // mapの表示関数 
+    function initMap() {
+        geocoder = new google.maps.Geocoder()
 
-    // 保存された地図情報からピンをさす
-    <% @maps.each do |map| %>
-    // google.maps.LatLngインスタンスを生成
-    pos = new google.maps.LatLng(
-    <%=map.latitude%>, //latitude
-    <%=map.longitude%> //longitude
-    );
-    default_marker = new google.maps.Marker({
-    map: mapInstance,
-    position: pos,
-    icon: {
-    url: ' https://maps.google.com/mapfiles/ms/icons/green-dot.png', //アイコンのURL
-    scaledSize: new google.maps.Size(40, 40) //サイズ
-    }
-    });
-    <% end %>
-  }
-
-
-  function codeAddress() {
-    let inputAddress = document.getElementById('address').value;
-
-    geocoder.geocode({
-      'address': inputAddress
-    }, function (results, status) {
-      if (status == 'OK') {
-        // map→mapInstanceに変更
-        mapInstance.setCenter(results[0].geometry.location);
-
-        // 既存の検索マーカーを削除
-        if(marker != null){
-        marker.setMap(null);
-        }
-        marker = null;
-
-        // var marker → markerへ変更
-        marker = new google.maps.Marker({
-          //map→mapInstanceに変更
-          map: mapInstance,
-          position: results[0].geometry.location
+        // mapの初期位置, 縮尺を定義
+        map = new google.maps.Map(document.getElementById('map'), {
+            center: {
+                lat: 35.6458437,
+                lng: 139.7046171
+            },
+            zoom: 12,
         });
 
-        let title = document.getElementById('map_title');
-        title.setAttribute("value", inputAddress);
+        // mapsテーブルにあるそれぞれのレコードをmap上に表示 
+        <% @maps.each do |m| %>
+            (function(){
+            var contentString = "住所：<%= m.address %>"; 
 
-        let hidden_address = document.getElementById('hidden_address');
-        hidden_address.setAttribute("value", inputAddress);
-      } else {
-        alert('Geocode was not successful for the following reason: ' + status);
-      }
-    });
-  }
+            // マーカーを立てる
+            var marker = new google.maps.Marker({
+                position:{lat: <%= m.latitude %>, lng: <%= m.longitude %>},
+                map: map,
+                title: contentString
+            });
 
+            // 情報ウィンドウ(吹き出し)の定義
+            // 投稿の詳細ページへのリンクも
+            var infowindow = new google.maps.InfoWindow({
+            position: {lat: <%= m.latitude %>, lng: <%= m.longitude %>},
+            content: "<a href='<%= map_url(m.id) %>' target='_blank'><%= m.address %></a>"
+            });
 
+            // クリックしたときに情報ウィンドウを表示
+            marker.addListener('click', function() {
+            infowindow.open(map, marker);
+            });
+            
+            })();
+        <% end %>
+    }
+
+    let geocoder
+
+    // 地図検索関数
+    function codeAddress() {
+        let inputAddress = document.getElementById('address').value;
+
+        geocoder.geocode({
+            'address': inputAddress
+        }, function (results, status) {
+            if (status == 'OK') {
+                map.setCenter(results[0].geometry.location);
+                var marker = new google.maps.Marker({
+                    map: map,
+                    position: results[0].geometry.location
+                });
+
+            display.textContent = "検索結果：" + results[ 0 ].geometry.location
+            } else {
+                alert('該当する結果がありませんでした：' + status);
+            }
+        });
+    }
 </script>
-<!--// 引用者の判断でAPI keyは環境変数を利用-->
-<script src="https://maps.googleapis.com/maps/api/js?key=<%= ENV['GOOGLE_MAP_API_KEY'] %>&callback=initMap" async defer></script>
+
+<script
+    src="https://maps.googleapis.com/maps/api/js?key=<%= ENV['GOOGLE_MAP_API_KEY'] %>&callback=initMap"  
+    async defer>
 </script>
+
+<h3>場所投稿フォーム</h3>
+<%= form_for(@map, :url => { controller:'maps', action:'create'})do |f| %>
+
+    <p>
+    <%= f.label :address %>
+    <%= f.text_field :address, size: "50x1" %>
+    
+    <%= f.label :title %>
+    <%= f.text_field :title %>
+    
+    <%= f.label :comment %>
+    <%= f.text_field :comment %>
+    </p>
+
+    <%= f.submit "送信"%>
+<% end %>
+
+<h3>場所一覧</h3>
+<% @maps.each do |t| %>
+    <p>住所 : <%= t.address %></p>
+    <p>緯度 : <%= t.latitude %></p>
+    <p>経度 : <%= t.longitude %></p>
+    <p>タイトル : <%= t.title %></p>
+    <p>コメント : <%= t.comment %></p></p>
+    <p><%= link_to "削除する", map_path(t.id), method: :delete %></p>
+    <hr>
+<% end %>

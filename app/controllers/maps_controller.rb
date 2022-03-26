@@ -1,18 +1,30 @@
 class MapsController < ApplicationController
   def index
-    # このあとで@mapに関するフォームを作るので、Mapインスタンスを作っておきます(でないとエラーになる)
-    @map = Map.new
     @maps = Map.all
+    @map = Map.new
+  end
+
+  def new
+
+  end
+
+  def show
+    @map = Map.find(params[:id])
   end
 
   def create
-    @map = Map.new(map_params)
-    if @map.save
-      redirect_to maps_url
+    map = Map.new(map_params)
+    if map.save
+      redirect_to :action => "index"
     else
-      @maps = Map.all
-      render 'maps/index'
+      redirect_to :action => "index"
     end
+  end
+
+  def destroy
+    map = Map.find(params[:id])
+    map.destroy
+    redirect_to action: :index
   end
 
   private
